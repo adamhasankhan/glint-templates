@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 """
 This launch script runs gravitational glint parameter estimation on a confirmed binary blackhole merger from the GSWOC database.
 Requires bilby grav-glint branch: https://gitlab.com/mattcarney106/bilby-mattcarney106
@@ -13,30 +12,21 @@ sample launch:
 import bilby
 from bilby.core.utils import logger
 from bilby.gw.conversion import component_masses_to_chirp_mass
-#from bilby.gw.utils import calculate_time_to_merger
 from gwpy.timeseries import TimeSeries
 import h5py
-#from gwosc.datasets import event_gps
 import datetime
 import argparse
 import numpy as np
 import urllib.request
 import json
-
 from multiprocessing import set_start_method
-
-
-
-#--------------------------------------
-#Ethan Addition:
 import astropy
 from astropy.cosmology import LambdaCDM
-
 import gwosc
 from gwosc.datasets import event_gps
 from gwosc.datasets import run_at_gps
 import os
-#------------------------------------
+
 
 
 set_start_method('fork')
@@ -290,33 +280,31 @@ def fetch_strain_data(det, start_time, end_time, event, samplerate):
     return data.resample(samplerate), False
 
 
-#logic to set a good trigger time
-#trigger_time = event_gps(event)
+# Get trigger time using Bilby helper function
 print('Getting trigger time...')
 trigger_time = bilby.gw.utils.get_event_time(event)
 print('Got trigger time...')
 logger.info(f"Running analysis with event time: {trigger_time}")
 
+# Set duration over which to sample [UNCLEAN]
 duration = 12  # Analysis segment duration
 post_trigger_duration = 6  # Time between trigger time and end of segment
 end_time = trigger_time + post_trigger_duration
 start_time = end_time - duration
 
+# Use GWTC data to inform priors on chirp mass and geocent time
 logger.info("Verifying PE data release file...")
 file_name = get_gwtc_filename(event, trigger_time, gwtc_dir, gwtc_file_override)
 logger.info(f"Using GWTC file: {file_name}")
 gwtc_file = h5py.File(file_name, 'r')
-#only need r not r+ because we are only reading, not reading and writing the GWTC file
-
 analysis_key = get_analysis_key(gwtc_file)
 logger.info(f"Using analysis key: {analysis_key}")
-
 Min_Chirp_Mass, Max_Chirp_Mass, Min_Geo, Max_Geo = get_prior_bounds(gwtc_file, analysis_key)
 
 
-#download and cache gravitational wave data
-#set up each ifo and calculate psd's
-#lastly, plots strain data and psd in outdir
+# Download and cache gravitational wave data
+# Set up each interferometer and calculate their PSD
+# Lastly, plot strain data and PSD in outdir
 ifo_list = bilby.gw.detector.InterferometerList([])
 for det in ["H1", "L1", "V1"]:
     try:
@@ -350,20 +338,10 @@ gwtc_file.close()
 logger.info("Saving data plots to {}".format(outdir))
 bilby.core.utils.check_directory_exists_and_if_not_mkdir(outdir)
 ifo_list.plot_data(outdir=outdir, label=label)
-
 priors = bilby.gw.prior.BBHPriorDict()
-#set variable priors
-#priors['geocent_time'] = bilby.core.prior.Uniform(
-#        minimum = their_trigger - 0.1,
-#        maximum = their_trigger + 0.1,
-#        name='geocent_time', latex_label='$t_c$', unit='$s$')
-#priors['luminosity_distance'] = bilby.core.prior.PowerLaw(alpha=2, name='luminosity_distance', minimum=100, maximum=10000, latex_label='$d_L$', unit='Mpc', boundary=None)
-#priors['mass_1'] = bilby.gw.prior.Constraint(minimum=1, maximum=1000)
-#priors['mass_2'] = bilby.gw.prior.Constraint(minimum=1, maximum=1000)
-#priors['chirp_mass'] = bilby.gw.prior.UniformInComponentsChirpMass(minimum=min_chirp, maximum=max_chirp, name='chirp_mass', boundary=None)
-#priors['mass_ratio'] = bilby.gw.prior.UniformInComponentsMassRatio(minimum=0.05, maximum=1.)
 
-#add glint parameters for us to sample in or pin glint params to 0
+
+# Add glint parameters (perturber parameters if --perturber_params, otherwise waveform parameters) and pin to zero if --noglintrec
 if glint_rec:
     if perturber_params:
         logger.info("Recovering with gravitational glint model...")
@@ -385,7 +363,7 @@ if glint_rec:
             name='M_P', latex_label='$M_P$', unit='$M_sun$'
         )
         
-        # model parameters
+        # waveform parameters
         priors['echo_delta_t'] = bilby.core.prior.Constraint(
         minimum=0.0,
         maximum=1.0,
@@ -396,6 +374,7 @@ if glint_rec:
         name='echo_amp', latex_label='$\\epsilon_{glint}$')
     else:    
         logger.info("Recovering with gravitational glint model...")
+        logger.info("Sampling in waveform parameters")
         priors['echo_delta_t'] = bilby.core.prior.Uniform(
         minimum=0.0,
         maximum=1.0,
@@ -411,8 +390,8 @@ else:
     priors['echo_amp'] = 0.0
 
 
+# Set variable priors
 available_dets = [ifo.name for ifo in ifo_list]
-
 if len(available_dets) > 1:
     # Multi-detector: use geocentric time (or check GWTC file for which one they used)
     time_ref = 'geocent'
@@ -448,7 +427,7 @@ priors['tilt_1']=bilby.core.prior.Sine(minimum=0, maximum=3.141592653589793, nam
 priors['tilt_2']=bilby.core.prior.Sine(minimum=0, maximum=3.141592653589793, name='tilt_2', latex_label='$\\theta_2$', unit=None, boundary=None)
 
 
-#define a waveform_generator to make a frequency domain strain with bbh source model
+# Define a waveform generator to make a frequency domain strain with BBH source model [pending updates to include waveform generator that supports perturber parameter conversion]
 waveform_generator = bilby.gw.WaveformGenerator(
     frequency_domain_source_model=bilby.gw.source.lal_binary_black_hole,
     parameter_conversion=bilby.gw.conversion.convert_to_lal_binary_black_hole_parameters,
@@ -457,7 +436,7 @@ waveform_generator = bilby.gw.WaveformGenerator(
                         'minimum_frequency': 20})
 
 
-#uses standard transient gwave likelihood function
+# Use standard transient gravitational wave likelihood function
 likelihood = bilby.gw.likelihood.GravitationalWaveTransient(
     ifo_list, waveform_generator, priors=priors,
     time_marginalization=False,
@@ -466,13 +445,13 @@ likelihood = bilby.gw.likelihood.GravitationalWaveTransient(
     time_reference=time_ref)
 
 
-#passing the priors, likelihood and command line args to the sampler
-#using the dynesty sampler
-#converts params to generate all bbh parameters
+# Set up the sampler and perform the PE
 result = bilby.run_sampler(
     likelihood=likelihood, priors=priors, sampler='dynesty', outdir=outdir, label=label,
     nlive=nlive, maxmcmc = maxmcmc, nact=nact, dlogz = 0.1, check_point_plot=True, npool=npool,
     conversion_function=bilby.gw.conversion.generate_all_bbh_parameters, check_point_delta_t=3600)
+
+# Generate corner plots, including a separate plot for glint parameters (if they were sampled)
 logger.info("Generating corner plots...")
 result.plot_corner()
 result.plot_corner(parameters=['echo_delta_t', 'echo_amp'], filename="{}/echo_params.pdf".format(outdir))
