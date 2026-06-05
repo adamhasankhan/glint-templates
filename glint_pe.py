@@ -5,7 +5,7 @@ Updated branch: https://github.com/adamhasankhan/bilby-adamhasankhan/tree/grav-g
 Uses gwpy [1] to download gravitational wave data.
 
 sample launch:
-    python3 gradar_template5.py --npool 12 --outdir ~/public_html/glint/GW150914 --label GW150914-run1 --event GW150914
+    python3 glint_pe.py --npool 12 --outdir ~/public_html/glint/GW150914 --label GW150914-run1 --event GW150914
 
 [1] https://gwpy.github.io/docs/stable/timeseries/remote-access.html
 """
