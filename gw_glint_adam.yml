@@ -376,4 +376,3 @@ dependencies:
       - sympy==1.14.0
       - torch==2.12.0
       - triton==3.7.0
-prefix: /home/khan1/miniconda3/envs/gw_glint_adam_new
