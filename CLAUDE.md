@@ -24,6 +24,16 @@ upstream Bilby. You must install:
 Other deps used at import: `gwpy`, `gwosc`, `h5py`, `astropy`, `numpy`. Running against stock
 PyPI `bilby` will fail or silently ignore the echo priors.
 
+The easiest way to get a working environment (including the grav-glint Bilby fork pin) is the
+checked-in conda env file:
+
+```bash
+conda env create -f gw_glint_adam.yml
+conda activate gw_glint_adam
+```
+
+It pins the fork to `grav-glint @ 8149ea5f` (`v2.8.1+glint`) plus every other resolved dependency.
+
 ## Running
 
 ```bash
