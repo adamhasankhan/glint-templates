@@ -220,7 +220,7 @@ phase = Uniform(minimum=0.0, maximum=6.283185307179586, name='phase', latex_labe
     if glint_rec:
         echo_lines = (
             "echo_delta_t = Uniform(minimum=0.1, maximum=1.0, name='echo_delta_t', "
-            r"latex_label='$\Delta t_{glint}$', unit='$s$')"
+            r"latex_label='$\Delta{}t_{glint}$', unit='$s$')"
             "\n"
             "echo_amp = Uniform(minimum=0.0, maximum=1.0, name='echo_amp', "
             r"latex_label='$\epsilon_{glint}$')"
