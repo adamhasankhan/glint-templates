@@ -40,7 +40,7 @@ parser.add_argument('--label', type=str, default ='glint_test', help="label for 
 parser.add_argument('--outdir', type=str, default='.', help = "outdir for run")
 parser.add_argument('--rand', type=int, default=88170235, help="sets the random seed for noise instance")
 parser.add_argument('--nlive', type=int, default=2048, help="number of live points to use in dynesty sampler")
-parser.add_argument('--nact', type=int, default=50, help="nact dynesty sampler hyperparameter")
+parser.add_argument('--nact', type=int, default=15, help="nact dynesty sampler hyperparameter (rwalk walk length = nact * ACT)")
 parser.add_argument('--event', type=str, default='bleh', help="name of event to run analysis on")
 parser.add_argument('--maxmcmc', type=int, default=10000, help="max_mcmc dynesty hyper paramater")
 parser.add_argument('--samplerate', type=int, default=4096, help="sample rate for data")
@@ -445,10 +445,15 @@ likelihood = bilby.gw.likelihood.GravitationalWaveTransient(
     time_reference=time_ref)
 
 
-# Set up the sampler and perform the PE
+# Set up the sampler and perform the PE.
+# Explicitly request rwalk + multi to match blake2's runs. This must be set
+# explicitly: bilby's version-dependent default selects act-walk + live here,
+# which lets the MCMC chain length run away (maxmcmc x50 ceiling) and stalls.
+# rwalk sets the walk length to nact * ACT, hard-capped at maxmcmc.
 result = bilby.run_sampler(
     likelihood=likelihood, priors=priors, sampler='dynesty', outdir=outdir, label=label,
-    nlive=nlive, maxmcmc = maxmcmc, nact=nact, dlogz = 0.1, check_point_plot=True, npool=npool,
+    nlive=nlive, maxmcmc=maxmcmc, nact=nact, dlogz=0.1, sample='rwalk', bound='multi',
+    check_point_plot=True, npool=npool,
     conversion_function=bilby.gw.conversion.generate_all_bbh_parameters, check_point_delta_t=3600)
 
 # Generate corner plots, including a separate plot for glint parameters (if they were sampled)
